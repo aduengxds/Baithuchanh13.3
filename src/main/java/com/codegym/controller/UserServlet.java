@@ -64,7 +64,10 @@ public class UserServlet extends HttpServlet {
                 case "test-without-tran":
                     testWithoutTran(request, response);
                     break;
-
+                    
+                case "test-use-tran":
+                    testUseTran(request, response);
+                    break;
                 default:
                     response.sendError(
                             HttpServletResponse.SC_NOT_FOUND
@@ -394,5 +397,28 @@ public class UserServlet extends HttpServlet {
         response.sendRedirect(
                 request.getContextPath() + "/users"
         );
+    }
+
+    private void testUseTran(
+            HttpServletRequest request,
+            HttpServletResponse response
+    ) throws IOException {
+
+        response.setContentType("text/html;charset=UTF-8");
+
+        try (PrintWriter out = response.getWriter()) {
+            userDAO.insertUpdateUseTransaction();
+
+            out.println("<h3>Transaction thực hiện thành công.</h3>");
+        } catch (SQLException e) {
+            e.printStackTrace();
+
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+
+            try (PrintWriter out = response.getWriter()) {
+                out.println("<h3>Transaction thất bại.</h3>");
+                out.println("<p>" + e.getMessage() + "</p>");
+            }
+        }
     }
 }
