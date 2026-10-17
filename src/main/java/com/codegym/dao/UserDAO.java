@@ -41,7 +41,7 @@ public class UserDAO implements IUserDAO {
     private static final String DELETE_USER =
             "DELETE FROM users WHERE id = ?";
 
-    // SQL dùng cho bài 13.3: không sử dụng Transaction
+    // SQL cho bài 13.3: thực thi không sử dụng Transaction
     private static final String SQL_INSERT =
             "INSERT INTO Employee (name, salary, created_Date) VALUES (?, ?, ?)";
 
@@ -60,6 +60,7 @@ public class UserDAO implements IUserDAO {
     private static final String SQL_TABLE_DROP =
             "DROP TABLE IF EXISTS Employee";
 
+    // Tạo kết nối đến MySQL
     private Connection getConnection() throws SQLException {
         return DriverManager.getConnection(
                 JDBC_URL,
@@ -204,7 +205,7 @@ public class UserDAO implements IUserDAO {
         }
     }
 
-    // Tìm kiếm theo quốc gia
+    // Tìm kiếm người dùng theo quốc gia
     @Override
     public List<User> searchByCountry(String country)
             throws SQLException {
@@ -229,7 +230,7 @@ public class UserDAO implements IUserDAO {
         return users;
     }
 
-    // Sắp xếp theo tên A-Z
+    // Sắp xếp người dùng theo tên A-Z
     @Override
     public List<User> sortByName() throws SQLException {
         List<User> users = new ArrayList<>();
@@ -256,48 +257,63 @@ public class UserDAO implements IUserDAO {
         try (Connection conn = getConnection();
              Statement statement = conn.createStatement()) {
 
-            // Xóa bảng cũ và tạo bảng mới để kiểm thử từ đầu
+            // Không tắt auto-commit.
+            // Mỗi câu lệnh SQL thành công được commit riêng.
+            System.out.println("Auto-commit: " + conn.getAutoCommit());
+
+            // Xóa bảng cũ và tạo bảng mới
             statement.execute(SQL_TABLE_DROP);
             statement.execute(SQL_TABLE_CREATE);
 
-            // Chuẩn bị và thực thi hai lệnh INSERT
+            // INSERT nhân viên thứ nhất
             try (PreparedStatement psInsert =
-                         conn.prepareStatement(SQL_INSERT);
-                 PreparedStatement psUpdate =
-                         conn.prepareStatement(SQL_UPDATE)) {
+                         conn.prepareStatement(SQL_INSERT)) {
 
-                // Chèn nhân viên thứ nhất
                 psInsert.setString(1, "Quynh");
                 psInsert.setBigDecimal(
                         2, new BigDecimal("10.00"));
                 psInsert.setTimestamp(
                         3, Timestamp.valueOf(LocalDateTime.now()));
+
                 psInsert.executeUpdate();
 
-                // Chèn nhân viên thứ hai
+                System.out.println("Đã INSERT nhân viên Quynh.");
+
+                // INSERT nhân viên thứ hai
                 psInsert.setString(1, "Ngan");
                 psInsert.setBigDecimal(
                         2, new BigDecimal("20.00"));
                 psInsert.setTimestamp(
                         3, Timestamp.valueOf(LocalDateTime.now()));
+
                 psInsert.executeUpdate();
 
-                // Cố tình gây lỗi:
-                // tham số 1 của UPDATE chưa được gán giá trị.
-                // Đây là hành vi chủ đích của bài thực hành.
+                System.out.println("Đã INSERT nhân viên Ngan.");
+            }
+
+            // Cố tình làm UPDATE thất bại
+            try (PreparedStatement psUpdate =
+                         conn.prepareStatement(SQL_UPDATE)) {
+
+                // Lỗi chủ đích: tham số 1 (salary) chưa được gán.
                 psUpdate.setBigDecimal(
                         2, new BigDecimal("999.99"));
                 psUpdate.setString(2, "Quynh");
 
-                // SQLException dự kiến xảy ra tại đây
+                // Dự kiến SQLException xảy ra tại đây
                 psUpdate.executeUpdate();
+
+            } catch (SQLException e) {
+                System.out.println(
+                        "UPDATE thất bại như dự kiến do thiếu tham số."
+                );
+                e.printStackTrace();
             }
 
-        } catch (SQLException e) {
+            // Hai INSERT đã commit không bị rollback
             System.out.println(
-                    "Đã bắt được lỗi trong quá trình thực thi SQL:"
+                    "Kiểm thử hoàn tất. Hãy kiểm tra bảng Employee."
             );
-            e.printStackTrace();
         }
     }
 
@@ -387,7 +403,6 @@ public class UserDAO implements IUserDAO {
                 try {
                     connection.setAutoCommit(originalAutoCommit);
                 } catch (SQLException e) {
-                    // Tiếp tục đóng kết nối bên dưới
                     System.err.println(
                             "Không thể khôi phục auto-commit: "
                             + e.getMessage()
